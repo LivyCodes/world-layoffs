@@ -60,3 +60,46 @@ set sql_safe_updates=0;
 delete from layoffs_staging2
 where row_num > 1;
 
+-- Standardization of the data
+-- removing white spacesfrom company column using trim()
+update layoffs_staging2
+set company = trim(company);
+
+-- setting industry to be same for the 'crypto' industry since it has many variations
+select distinct industry
+from layoffs_staging2;
+
+select distinct industry
+from layoffs_staging2
+where industry like 'crypto%';
+
+update layoffs_staging2
+set industry = 'Crypto'
+where industry like 'Crypto%';
+
+-- standardizing the country column using trim for a trailing period(.) on one of the records
+select distinct country
+from layoffs_staging2
+order by 1;
+
+select distinct country
+from layoffs_staging2
+where country like 'United States%';
+
+update layoffs_staging2
+set country = trim(trailing '.' from country)
+where country like 'United States%';
+
+-- standarding the `date` column by changing it from string format to date format
+select `date`
+from layoffs_staging2;
+
+  -- changing to date format
+update layoffs_staging2
+set date = str_to_date(`date`, '%m/%d/%Y');
+
+  -- updating the data type for `date` column
+alter table layoffs_staging2
+modify column `date` date;
+
+select * from layoffs_staging2;
