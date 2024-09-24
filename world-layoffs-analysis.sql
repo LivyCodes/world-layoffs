@@ -137,6 +137,17 @@ and t1.location = t2.location
 set t1.industry = t2.industry
 where t1.industry is null and t2.industry is not null;
 
+
+-- Removing unnecessary records and columns 
+  -- Removing records where total_laid_off is null and percentage_laid_off is null;
+select * from layoffs_staging2
+where total_laid_off is null and percentage_laid_off is null;
+
+delete from layoffs_staging2
+where total_laid_off is null and percentage_laid_off is null;
+
+  -- Dropping the row_num column that we created
+alter table layoffs_staging2
+drop row_num;
+
 select * from layoffs_staging2;
-
-
