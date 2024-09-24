@@ -102,4 +102,41 @@ set date = str_to_date(`date`, '%m/%d/%Y');
 alter table layoffs_staging2
 modify column `date` date;
 
+-- checking for null values and managing them
+select * from layoffs_staging2
+where total_laid_off is null and percentage_laid_off is null;
+ 
+  -- cannot manage blanks or null values in total_laid_off column and percentage_laid_off column due to unsufficient data
+  -- checking for null values in the industry column
+select *
+from layoffs_staging2
+where industry=' '
+or industry is null;
+
+select * from layoffs_staging2
+where company like 'Bally%';
+
+  -- checking for similar companies and locations for industries with null values or blank spaces in order to populate with the similar ones
+select *
+from layoffs_staging2 t1
+join layoffs_staging2 t2
+on t1.company = t2.company
+and t1.location = t2.location
+where (t1.industry = ' ' or t1.industry is null) and t2.industry is not null;
+
+  -- updating the industries with blanks to null so as to be able to populate
+update layoffs_staging2
+set industry = null
+where industry =' ';
+
+  -- populating null values in industry column
+update layoffs_staging2 t1
+join layoffs_staging2 t2
+on t1.company = t2.company
+and t1.location = t2.location
+set t1.industry = t2.industry
+where t1.industry is null and t2.industry is not null;
+
 select * from layoffs_staging2;
+
+
