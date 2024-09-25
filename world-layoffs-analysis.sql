@@ -1,6 +1,6 @@
 use world_layoffs;
 
--- data cleaning
+-- DATA CLEANING
 select * from layoffs;
 
 -- creating a new table layoffs_staging similar to layoffs but, we'll be working on, i.e. data cleaning, the new table
@@ -151,3 +151,43 @@ alter table layoffs_staging2
 drop row_num;
 
 select * from layoffs_staging2;
+
+-- EXPLORATORY DATA ANALYSIS(EDA)
+	-- layoffs(total_laid_off) and their percentages(percentage_laid_off) by industry in descending order
+    select industry, sum(total_laid_off) as total_layoffs, round(avg(percentage_laid_off),3) as avg_percentage_layoffs
+    from layoffs_staging2
+    group by industry
+    order by 2 desc;
+    
+		-- analysing the layoffs based on average percentage to better understand the size of the industries in relation to the average percentages and total layoffs
+    with avg_industry_percentage_layoffs as
+    (select industry, sum(total_laid_off) as total_layoffs, round(avg(percentage_laid_off),3) as avg_percentage_layoffs
+    from layoffs_staging2
+    group by industry
+    order by 2 desc
+    )
+    select ROW_NUMBER() OVER (ORDER BY avg_percentage_layoffs asc) AS row_index, industry, avg_percentage_layoffs, total_layoffs
+    from avg_industry_percentage_layoffs
+    group by industry
+    order by 3 desc;
+		
+        -- maximum number of layoffs
+    select * from layoffs_staging2
+    where  total_laid_off=(
+		select max(total_laid_off)
+        from layoffs_staging2
+	); 	-- returns google with 12000 total_lay_offs and its corresponding percentage 0.06
+		
+		-- companies in consumer since the consumer industry ranks top in terms of total_laid_off and ranks 13th in terms of average percentage layoffs 
+        -- while google ranked top in terms of layoffs at 12000 with 0.06%
+    select * from layoffs_staging2
+    where industry = 'consumer'
+    order by 4 desc; -- returns google top followed by meta at 11000 layoffs and a 0.13 percentage_laid_off then twitter at a 3500 layoffs and 0.5 percentage_laid_off
+					 -- number and other smaller companies with small number of layoffs and high percentages follow hence explaining the rank of the consumer industry  
+                     -- as 1st in terms of total layoffs and 13th in terms of avg_percentage at 0.265 given the topbrands have significantly low percentages
+                     
+    -- top 3 layoffs in each industry by grouped by company and their stages
+    -- layoffs by stages
+    -- layoffs by year
+    -- layoffs by month
+    -- layoffs by country
