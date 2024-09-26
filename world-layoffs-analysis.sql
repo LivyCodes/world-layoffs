@@ -153,11 +153,12 @@ drop row_num;
 select * from layoffs_staging2;
 
 -- EXPLORATORY DATA ANALYSIS(EDA)
-	-- layoffs(total_laid_off) and their percentages(percentage_laid_off) by industry in descending order
+	-- layoffs(total_laid_off) and their average_percentage_laid_off by industry, ordered by total layoffs by industry in descending order 
     select industry, sum(total_laid_off) as total_layoffs, round(avg(percentage_laid_off),3) as avg_percentage_layoffs
     from layoffs_staging2
     group by industry
-    order by 2 desc;
+    order by 2 desc; -- top two industries are consumer at 45182 total layoffs and 0.265 average percent layoffs followed by retail at 43613 and 0.269 and others follow
+					 -- bottom two being Manufacturing at the bottom at 20 layoffs and 0.05 average percent layoffs and 2nd last being fintech at 215 layoffs and 0.243 average percent layoffs
     
 		-- analysing the layoffs based on average percentage to better understand the size of the industries in relation to the average percentages and total layoffs
     with avg_industry_percentage_layoffs as
@@ -169,25 +170,111 @@ select * from layoffs_staging2;
     select ROW_NUMBER() OVER (ORDER BY avg_percentage_layoffs asc) AS row_index, industry, avg_percentage_layoffs, total_layoffs
     from avg_industry_percentage_layoffs
     group by industry
-    order by 3 desc;
+    order by 3 desc; -- aerospace industry had the highest average percent layoffs 0.565 and 661 total layoffs suggesting that the aerospace industry may not be very populated
+					 -- the second higest average percent layoffs being education at 0.357 and 13338 total layoffs
+                     -- the least average percent layoffs was Manufacturing industry at 0.05 and 20 total layoffs
 		
-        -- maximum number of layoffs
+        -- industry with maximum number of layoffs
     select * from layoffs_staging2
     where  total_laid_off=(
 		select max(total_laid_off)
         from layoffs_staging2
 	); 	-- returns google with 12000 total_lay_offs and its corresponding percentage 0.06
 		
-		-- companies in consumer since the consumer industry ranks top in terms of total_laid_off and ranks 13th in terms of average percentage layoffs 
-        -- while google ranked top in terms of layoffs at 12000 with 0.06%
+		-- analysing companies in consumer since the consumer industry ranks top in terms of total_laid_off and ranks 13th in terms of average percentage layoffs 
+        -- while google, which is a company in consumer industry, ranked top in terms of layoffs at 12000 with 0.06 percentage_laid_off
     select * from layoffs_staging2
     where industry = 'consumer'
     order by 4 desc; -- returns google top followed by meta at 11000 layoffs and a 0.13 percentage_laid_off then twitter at a 3500 layoffs and 0.5 percentage_laid_off
 					 -- number and other smaller companies with small number of layoffs and high percentages follow hence explaining the rank of the consumer industry  
                      -- as 1st in terms of total layoffs and 13th in terms of avg_percentage at 0.265 given the topbrands have significantly low percentages
                      
-    -- top 3 layoffs in each industry by grouped by company and their stages
+    -- top 3 layoffs in each industry grouped by company and their stages
+    with ranked_companies as
+    (
+    select industry, company, stage, total_laid_off,
+    row_number() over (partition by industry order by total_laid_off desc) as `rank`
+    from layoffs_staging2
+    )
+    select *
+    from ranked_companies
+    where `rank` <= 3
+    order by industry, `rank`;
+    
     -- layoffs by stages
+			-- querying from the top 3 ranked companies in each industry which stage had the most layoffs
+   with ranked_companies as
+    (
+    select industry, company, stage, total_laid_off,
+    row_number() over (partition by industry order by total_laid_off desc) as `rank`
+    from layoffs_staging2
+    ),
+    top_3_companies as
+    (
+    select *
+    from ranked_companies
+    where `rank` <= 3
+    order by industry, `rank`
+    )
+    select stage, count(*)
+    from top_3_companies
+    group by stage
+    order by 2 desc;  -- Post-IPO had the most layoffs out of the top 3 ranked companies in each industry, followed by Unknown then Acquired
+    
+			-- overall check of the stage that registered the most layoffs
+    select count(distinct stage) from layoffs_staging2;
+    
+    select stage, count(*)
+    from layoffs_staging2
+    group by stage
+    order by 2 desc;  -- Generally Post-IPO stage still had the highest layoffs followed by an Unknown stage then Series B, Series C, Series D and so on
+    
+    
     -- layoffs by year
+    select substring(`date`,1,4) as `year`, sum(total_laid_off)
+    from layoffs_staging2
+    where `date` is not null
+    group by `year` 
+    order by 1 asc;	-- 2022 had the most layoffs, followed by 2023, then 2020 and 2021 had the least layoffs with a significantly low number compared to the rest of the years
+    
     -- layoffs by month
+    with rolling_total as
+    (
+    select substring(`date`, 1,7) as `month`, sum(total_laid_off) as total_layoffs
+    from layoffs_staging2
+    where `date` is not null
+    group by `month`
+    order by 1 asc
+    )
+    select `month`, sum(total_layoffs), sum(total_layoffs) over(order by `month`) as cumulative_total
+    from rolling_total
+    group by `month`;	-- 383159 people had been laid of from the 2020-03 till 2023-03 ie a span of 36 months
+    
+			-- months with most and least layoffs
+	with monthly_totals as
+    (
+    select substring(`date`, 1,7) as `month`, sum(total_laid_off) as total_layoffs
+    from layoffs_staging2
+    where `date` is not null
+    group by `month`
+    order by 1 asc
+    )
+    select `month`, total_layoffs
+    from monthly_totals
+    where total_layoffs =
+    (select max(total_layoffs)
+    from monthly_totals)
+    or
+    total_layoffs =
+    (select min(total_layoffs)
+    from monthly_totals)
+    ;		-- 2023-01 had the most layoffs at 84714 layoffs while 2021-10 had the least at 22 layoffs
+    
     -- layoffs by country
+    select country, sum(total_laid_off) as total_layoffs, count(distinct company) as companies_count, count(distinct industry) as industries_count
+    from layoffs_staging2
+    group by country
+    order by 2 desc;  -- United States had the most layoffs at 256559 layoffs with 1055 companies laying people off across 30 industries
+    
+    
+    select * from layoffs_staging2;
